@@ -1,0 +1,57 @@
+version: '3'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:3000
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - redis
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DJANGO_SECRET_KEY=your-secret-key-here
+      - DJANGO_DEBUG=True
+   
+
+  celery:
+    build: .
+    command: celery -A frontend_api worker --loglevel=info
+    depends_on:
+      - redis
+    restart: always
+    volumes:
+      - .:/app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+   
+
+  celery-beat:
+    build: .
+    command: celery -A frontend_api beat --loglevel=info
+    depends_on:
+      - redis
+    restart: always
+    volumes:
+      - .:/app
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+  
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    privileged: true
+
+  
+# Add this to the end of both docker-compose.yml files
+networks:
+  default:
+    external:
+      name: shared_network

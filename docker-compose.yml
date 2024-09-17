@@ -1,0 +1,67 @@
+version: '3'
+
+services:
+  admin_api:
+    build: ./admin_api
+    container_name: admin
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./admin_api:/app
+    ports:
+      - "8000:8000"
+    networks:
+      - shared_network
+
+  frontend_api:
+    build: ./frontend_api
+    container_name: frontend
+    command: python manage.py runserver 0.0.0.0:3000
+    volumes:
+      - ./frontend_api:/app
+    ports:
+      - "3000:3000"
+    depends_on:
+      - admin_api
+    networks:
+      - shared_network
+      - redis_network
+
+  celery:
+    build: ./frontend_api
+    command: celery -A frontend_api worker --loglevel=info
+    depends_on:
+      - redis
+    volumes:
+      - ./frontend_api:/app
+    networks:
+      - shared_network
+      - redis_network
+
+  celery_beat:
+    build: ./frontend_api
+    command: celery -A frontend_api beat --loglevel=info
+    depends_on:
+      - redis
+    volumes:
+      - ./frontend_api:/app
+    networks:
+      - shared_network
+      - redis_network
+
+  redis:
+    image: redis:latest
+    ports:
+      - "6379:6379"
+    networks:
+      - redis_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      retries: 5
+      start_period: 10s
+    privileged: true
+networks:
+  shared_network:
+    driver: bridge
+  redis_network:
+    driver: bridge
